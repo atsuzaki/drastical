@@ -1,0 +1,10 @@
+[package]
+name = "ddhooks"
+version = "0.1.0"
+authors = ["Katherine Philip <kurerunoshikaku@yahoo.com>"]
+edition = "2018"
+
+[dependencies]
+actix = "0.7"
+actix-web = "0.7"
+serde = "1.0.90"
