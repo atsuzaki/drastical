@@ -6,5 +6,9 @@ edition = "2018"
 
 [dependencies]
 actix = "0.7"
-actix-web = "0.7"
-serde = "1.0.90"
+actix-web = { version = "0.7", features = ["alpn"] }
+dotenv = "0.13.0"
+futures = "0.1"
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
