@@ -25,32 +25,46 @@ mod discord {
     }
 }
 
-
 use std::env;
 use dotenv::dotenv;
 
+
+// TODO: use, through actix states?
+/*
+#[derive(Serialize, Debug)]
+struct AppEnv {
+    theme_hook_url: String,
+    admin_hook_url: String,
+}
+
+impl AppEnv {
+    fn populate() -> Result<AppEnv, std::error::Error> {
+        AppEnv {
+            theme_hook_url: env::var("DISCORD_ADMIN_HOOK")?,
+            admin_hook_url: env::var("DISCORD_THEME_HOOK")?,
+        }
+    }
+}
+*/
+
 use actix_web::{App, Error, HttpRequest, HttpResponse, http, error, client, server, Responder, AsyncResponder, middleware};
-use actix_web::error::{ResponseError, ErrorInternalServerError}; // TODO: temp
+use actix_web::error::ErrorInternalServerError;
 use futures::future::Future;
 
 use crate::discord::DiscordRequest;
 
-fn index(req: &HttpRequest) -> impl Responder {
-    HttpResponse::Ok().body("Request received\n")
-}
+fn index(req: &HttpRequest) -> impl Responder {HttpResponse::Ok().body("Request received\n")}
 
 fn send_to_discord(req: &HttpRequest) -> Box<Future<Item=HttpResponse, Error=Error>> {
     let url = env::var("DISCORD_ADMIN_HOOK").expect("Please set admin channel Webhooks URL!");
-    let a = client::ClientRequest::post(url)
+
+    let result = client::ClientRequest::post(url)
         .header(http::header::CONTENT_TYPE, "application/json")
         .json(&DiscordRequest::new("Hello from Rust!"))
-        .unwrap();
+        .unwrap()
 
-    println!("{:#?}", a);
-
-    let b = a.send()
+        .send()
         .map_err(|e| {
-            println!("{:?}", e.error_response());
             ErrorInternalServerError(e)
         })
         .and_then(|result| {
@@ -59,7 +73,7 @@ fn send_to_discord(req: &HttpRequest) -> Box<Future<Item=HttpResponse, Error=Err
         })
         .responder();
 
-    b
+   result
 }
 
 fn main() {
@@ -67,13 +81,10 @@ fn main() {
     dotenv().ok();
 
     let sys = actix::System::new("digidailies-service");
-
-    server::new(
-        || App::new()
+    server::new(|| App::new()
             .middleware(middleware::Logger::default())
             .resource("/push", |r| r.method(http::Method::POST).f(index))
-            .resource("/sendToDiscord",
-                      |r| r.method(http::Method::POST).f(send_to_discord))
+            .resource("/sendToDiscord",|r| r.method(http::Method::POST).f(send_to_discord))
         )
 
         .bind("127.0.0.1:8088")
