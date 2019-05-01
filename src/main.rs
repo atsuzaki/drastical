@@ -1,54 +1,21 @@
 extern crate actix_web;
 extern crate dotenv;
 
-mod discord {
-    use actix_web::{Error, HttpResponse, error, http, client, Responder, AsyncResponder};
-    use actix_web::error::ErrorInternalServerError;
-    use futures::future::Future;
-    use serde::{Serialize};
+use actix_web::{http, middleware, server, App, Error, HttpRequest, HttpResponse, Responder};
+use dotenv::dotenv;
+use futures::future::Future;
+use serde::Serialize;
+use std::env;
 
-    static USERNAME: &str = "DigiDailies";
-    static AVATAR_URL: &str = "https://pbs.twimg.com/profile_images/1078696700506791936/QHYnmKxk_400x400.jpg";
+mod discord;
 
-    #[derive(Serialize, Debug)]
-    pub struct DiscordRequest<'a> {
-        pub username: &'a str,
-        pub content: &'a str,
-        pub avatar_url: &'a str,
-    }
+use crate::discord::DiscordRequest;
 
-    impl<'a> DiscordRequest<'a> {
-        pub fn send(content: &str, url: &str) -> Box<Future<Item=HttpResponse, Error=Error>> {
-            client::ClientRequest::post(url)
-                .header(http::header::CONTENT_TYPE, "application/json")
-                .json(&DiscordRequest::new(content))
-                .unwrap()
-
-                .send()
-                .map_err(|e| {
-                    ErrorInternalServerError(e)
-                })
-                .and_then(|result| {
-                    Ok(HttpResponse::Ok().body("Request sent!\n"))
-                })
-                .responder()
-        }
-
-        pub fn new(content: &str) -> DiscordRequest {
-            DiscordRequest {
-                username: &USERNAME,
-                avatar_url: &AVATAR_URL,
-                content,
-            }
-        }
-    }
+#[derive(Debug)]
+struct AppState {
+    env: AppEnv,
 }
 
-use std::env;
-use dotenv::dotenv;
-
-// TODO: use, through actix states?
-/*
 #[derive(Serialize, Debug)]
 struct AppEnv {
     theme_hook_url: String,
@@ -56,24 +23,20 @@ struct AppEnv {
 }
 
 impl AppEnv {
-    fn populate() -> Result<AppEnv, std::error::Error> {
-        AppEnv {
-            theme_hook_url: env::var("DISCORD_ADMIN_HOOK")?,
+    fn populate() -> Result<AppEnv, std::env::VarError> {
+        Ok(AppEnv {
+            theme_hook_url: env::var("DISCORD_ADMIN_HOOK")?, // TODO: consider using expect instead, so theres err message
             admin_hook_url: env::var("DISCORD_THEME_HOOK")?,
-        }
+        })
     }
 }
-*/
 
-use actix_web::{App, Error, HttpRequest, HttpResponse, http, server, Responder, middleware};
-use futures::future::Future;
+fn index(req: &HttpRequest<AppState>) -> impl Responder {
+    HttpResponse::Ok().body("Request received\n")
+}
 
-use crate::discord::DiscordRequest;
-
-fn index(req: &HttpRequest) -> impl Responder {HttpResponse::Ok().body("Request received\n")}
-
-fn send_to_discord(req: &HttpRequest) -> Box<Future<Item=HttpResponse, Error=Error>> {
-    let url = env::var("DISCORD_ADMIN_HOOK").expect("Please set admin channel Webhooks URL!");
+fn send_to_discord(req: &HttpRequest<AppState>) -> Box<Future<Item = HttpResponse, Error = Error>> {
+    let url = &req.state().env.theme_hook_url;
     DiscordRequest::send("Hello from Rust!", &url)
 }
 
@@ -82,15 +45,23 @@ fn main() {
     dotenv().ok();
 
     let sys = actix::System::new("digidailies-service");
-    server::new(|| App::new()
-            .middleware(middleware::Logger::default())
-            .resource("/push", |r| r.method(http::Method::POST).f(index))
-            .resource("/sendToDiscord",|r| r.method(http::Method::POST).f(send_to_discord))
-        )
 
-        .bind("127.0.0.1:8088")
-        .unwrap()
-        .start();
+    server::new(|| {
+        App::with_state(AppState {
+            env: AppEnv::populate().unwrap_or_else(|e| {
+                eprintln!("Failure populating environment variables: {:?}", e);
+                std::process::exit(1)
+            }),
+        })
+        .middleware(middleware::Logger::default())
+        .resource("/push", |r| r.method(http::Method::POST).f(index))
+        .resource("/sendToDiscord", |r| {
+            r.method(http::Method::POST).f(send_to_discord)
+        })
+    })
+    .bind("127.0.0.1:8088")
+    .unwrap()
+    .start();
 
     println!("Server running on 127.0.0.1:8088");
     let _ = sys.run();
