@@ -2,6 +2,9 @@ extern crate actix_web;
 extern crate dotenv;
 
 mod discord {
+    use actix_web::{Error, HttpResponse, error, http, client, Responder, AsyncResponder};
+    use actix_web::error::ErrorInternalServerError;
+    use futures::future::Future;
     use serde::{Serialize};
 
     static USERNAME: &str = "DigiDailies";
@@ -15,7 +18,23 @@ mod discord {
     }
 
     impl<'a> DiscordRequest<'a> {
-        pub fn new(content: & str) -> DiscordRequest {
+        pub fn send(content: &str, url: &str) -> Box<Future<Item=HttpResponse, Error=Error>> {
+            client::ClientRequest::post(url)
+                .header(http::header::CONTENT_TYPE, "application/json")
+                .json(&DiscordRequest::new(content))
+                .unwrap()
+
+                .send()
+                .map_err(|e| {
+                    ErrorInternalServerError(e)
+                })
+                .and_then(|result| {
+                    Ok(HttpResponse::Ok().body("Request sent!\n"))
+                })
+                .responder()
+        }
+
+        pub fn new(content: &str) -> DiscordRequest {
             DiscordRequest {
                 username: &USERNAME,
                 avatar_url: &AVATAR_URL,
@@ -27,7 +46,6 @@ mod discord {
 
 use std::env;
 use dotenv::dotenv;
-
 
 // TODO: use, through actix states?
 /*
@@ -47,8 +65,7 @@ impl AppEnv {
 }
 */
 
-use actix_web::{App, Error, HttpRequest, HttpResponse, http, error, client, server, Responder, AsyncResponder, middleware};
-use actix_web::error::ErrorInternalServerError;
+use actix_web::{App, Error, HttpRequest, HttpResponse, http, server, Responder, middleware};
 use futures::future::Future;
 
 use crate::discord::DiscordRequest;
@@ -57,23 +74,7 @@ fn index(req: &HttpRequest) -> impl Responder {HttpResponse::Ok().body("Request 
 
 fn send_to_discord(req: &HttpRequest) -> Box<Future<Item=HttpResponse, Error=Error>> {
     let url = env::var("DISCORD_ADMIN_HOOK").expect("Please set admin channel Webhooks URL!");
-
-    let result = client::ClientRequest::post(url)
-        .header(http::header::CONTENT_TYPE, "application/json")
-        .json(&DiscordRequest::new("Hello from Rust!"))
-        .unwrap()
-
-        .send()
-        .map_err(|e| {
-            ErrorInternalServerError(e)
-        })
-        .and_then(|result| {
-            println!("{:?}", result);
-            Ok(HttpResponse::Ok().body("Request sent!\n"))
-        })
-        .responder();
-
-   result
+    DiscordRequest::send("Hello from Rust!", &url)
 }
 
 fn main() {
