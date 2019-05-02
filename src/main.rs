@@ -53,10 +53,15 @@ fn webhook_manual((p, req): (Json<PushEvent>, HttpRequest<AppState>)) -> Box<Fut
     DiscordRequest::send(&p.content, &url)
 }
 
+fn index(req: &HttpRequest<AppState>) -> impl Responder {
+    HttpResponse::Ok().body("Welcome to Drastical service\n")
+}
+
 fn main() {
     println!("Starting http server");
     dotenv().ok();
 
+    let port = env::var("PORT").expect("Port is not set in .env!");
     let sys = actix::System::new("digidailies-service");
 
     server::new(|| {
@@ -67,6 +72,7 @@ fn main() {
             }),
         })
         .middleware(middleware::Logger::default())
+        .resource("/", |r| r.f(index))
         .resource("/pushZap", |r| {
             r.method(http::Method::POST).with(webhook_zap)
         })
@@ -77,10 +83,10 @@ fn main() {
             r.method(http::Method::POST).with(webhook_manual)
         })
     })
-    .bind("127.0.0.1:8088")
+    .bind(&port)
     .unwrap()
     .start();
 
-    println!("Server running on 127.0.0.1:8088");
+    println!("Server running on {}", &port);
     let _ = sys.run();
 }
