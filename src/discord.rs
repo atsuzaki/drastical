@@ -21,8 +21,8 @@ impl<'a> DiscordRequest<'a> {
             .json(&DiscordRequest::new(content))
             .unwrap()
             .send()
-            .map_err(|e| ErrorInternalServerError(e))
-            .and_then(|result| Ok(HttpResponse::Ok().body("Request sent!\n")))
+            .map_err(|e| ErrorInternalServerError(e)) // TODO: better error message
+            .and_then(|_| Ok(HttpResponse::Ok().body("Request sent!\n")))
             .responder()
     }
 

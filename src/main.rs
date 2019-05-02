@@ -1,15 +1,21 @@
 extern crate actix_web;
 extern crate dotenv;
 
-use actix_web::{http, middleware, server, App, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{http, middleware, server, App, Error, HttpRequest, HttpResponse, Json, Responder};
 use dotenv::dotenv;
 use futures::future::Future;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::env;
 
 mod discord;
 
 use crate::discord::DiscordRequest;
+
+// Webhook PushEvent, only deserializing content
+#[derive(Deserialize, Debug)]
+struct PushEvent {
+    content: String,
+}
 
 #[derive(Debug)]
 struct AppState {
@@ -18,26 +24,33 @@ struct AppState {
 
 #[derive(Serialize, Debug)]
 struct AppEnv {
-    theme_hook_url: String,
     admin_hook_url: String,
+    theme_hook_url: String,
 }
 
 impl AppEnv {
     fn populate() -> Result<AppEnv, std::env::VarError> {
         Ok(AppEnv {
-            theme_hook_url: env::var("DISCORD_ADMIN_HOOK")?, // TODO: consider using expect instead, so theres err message
-            admin_hook_url: env::var("DISCORD_THEME_HOOK")?,
+            admin_hook_url: env::var("DISCORD_ADMIN_HOOK")?, // TODO: consider using expect instead, so theres err message
+            theme_hook_url: env::var("DISCORD_THEME_HOOK")?,
         })
     }
 }
 
-fn index(req: &HttpRequest<AppState>) -> impl Responder {
+fn webhook_zap(p: Json<PushEvent>) -> impl Responder {
+    println!("{:?}", p);
     HttpResponse::Ok().body("Request received\n")
 }
 
-fn send_to_discord(req: &HttpRequest<AppState>) -> Box<Future<Item = HttpResponse, Error = Error>> {
-    let url = &req.state().env.theme_hook_url;
-    DiscordRequest::send("Hello from Rust!", &url)
+fn webhook_twitter(p: Json<PushEvent>) -> impl Responder {
+    println!("{:?}", p);
+    HttpResponse::Ok().body("Request received\n")
+}
+
+#[rustfmt::skip]
+fn webhook_manual((p, req): (Json<PushEvent>, HttpRequest<AppState>)) -> Box<Future<Item = HttpResponse, Error = Error>> {
+    let url = &req.state().env.admin_hook_url;
+    DiscordRequest::send(&p.content, &url)
 }
 
 fn main() {
@@ -54,9 +67,14 @@ fn main() {
             }),
         })
         .middleware(middleware::Logger::default())
-        .resource("/push", |r| r.method(http::Method::POST).f(index))
-        .resource("/sendToDiscord", |r| {
-            r.method(http::Method::POST).f(send_to_discord)
+        .resource("/pushZap", |r| {
+            r.method(http::Method::POST).with(webhook_zap)
+        })
+        .resource("/pushTwitter", |r| {
+            r.method(http::Method::POST).with(webhook_twitter)
+        })
+        .resource("/pushManual", |r| {
+            r.method(http::Method::POST).with(webhook_manual)
         })
     })
     .bind("127.0.0.1:8088")
