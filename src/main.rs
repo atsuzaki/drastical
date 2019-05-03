@@ -1,20 +1,36 @@
 extern crate actix_web;
 extern crate dotenv;
 
-use actix_web::{http, middleware, server, App, Error, HttpRequest, HttpResponse, Json, Responder};
+use actix_web::{
+    http, middleware, server, App, FutureResponse, HttpRequest, HttpResponse, Json, Responder,
+};
 use dotenv::dotenv;
-use futures::future::Future;
+use futures::future::{ok, Future};
 use serde::{Deserialize, Serialize};
 use std::env;
 
 mod discord;
 
-use crate::discord::DiscordRequest;
+use crate::discord::{DiscordChannel, DiscordRequest};
 
-// Webhook PushEvent, only deserializing content
+///
+/// Shape for webhook automatic PushEvent
+///
 #[derive(Deserialize, Debug)]
 struct PushEvent {
+    tweet_url: String,
     content: String,
+}
+
+///
+/// Shape for webhook manual PushEvent, with channel as option
+///
+#[derive(Deserialize, Debug)]
+struct ManualPushEvent {
+    content: String,
+
+    #[serde(default)]
+    channel: DiscordChannel,
 }
 
 #[derive(Debug)]
@@ -31,30 +47,41 @@ struct AppEnv {
 impl AppEnv {
     fn populate() -> Result<AppEnv, std::env::VarError> {
         Ok(AppEnv {
-            admin_hook_url: env::var("DISCORD_ADMIN_HOOK")?, // TODO: consider using expect instead, so theres err message
-            theme_hook_url: env::var("DISCORD_THEME_HOOK")?,
+            admin_hook_url: env::var("DISCORD_ADMIN_HOOK")
+                .expect("Admin channel webhook url is not set in .env!"),
+            theme_hook_url: env::var("DISCORD_THEME_HOOK")
+                .expect("Theme channel webhook url is not set in .env!"),
         })
     }
 }
 
-fn webhook_zap(p: Json<PushEvent>) -> impl Responder {
-    println!("{:?}", p);
-    HttpResponse::Ok().body("Request received\n")
-}
-
-fn webhook_twitter(p: Json<PushEvent>) -> impl Responder {
-    println!("{:?}", p);
-    HttpResponse::Ok().body("Request received\n")
-}
-
-#[rustfmt::skip]
-fn webhook_manual((p, req): (Json<PushEvent>, HttpRequest<AppState>)) -> Box<Future<Item = HttpResponse, Error = Error>> {
-    let url = &req.state().env.admin_hook_url;
-    DiscordRequest::send(&p.content, &url)
-}
-
 fn index(req: &HttpRequest<AppState>) -> impl Responder {
     HttpResponse::Ok().body("Welcome to Drastical service\n")
+}
+
+///
+/// Endpoint for receiving Zapier webhook data
+/// Will be deprecated and replaced as soon as DigiDailies twitter dev account is approved
+///
+#[rustfmt::skip]
+fn webhook_zap((p, req): (Json<PushEvent>, HttpRequest<AppState>)) -> FutureResponse<HttpResponse> {
+    let url = &req.state().env.theme_hook_url;
+
+    if p.content.len() > 2 && &p.content[0..2] == "rt" { // TODO: better way
+        Box::new(ok(HttpResponse::Accepted().body("Is a retweet"))) // Wrap into a FutureResponse
+    }
+    else {
+        DiscordRequest::send(&p.tweet_url, &url)
+    }
+}
+
+///
+/// Endpoint for manual content pushes
+///
+#[rustfmt::skip]
+fn webhook_manual((p, req): (Json<ManualPushEvent>, HttpRequest<AppState>)) -> FutureResponse<HttpResponse>  {
+    let url = if p.channel == DiscordChannel::Theme { &req.state().env.theme_hook_url } else { &req.state().env.admin_hook_url };
+    DiscordRequest::send(&p.content, &url)
 }
 
 fn main() {
@@ -76,9 +103,6 @@ fn main() {
         .resource("/pushZap", |r| {
             r.method(http::Method::POST).with(webhook_zap)
         })
-        .resource("/pushTwitter", |r| {
-            r.method(http::Method::POST).with(webhook_twitter)
-        })
         .resource("/pushManual", |r| {
             r.method(http::Method::POST).with(webhook_manual)
         })
@@ -87,6 +111,6 @@ fn main() {
     .unwrap()
     .start();
 
-    println!("Server running on {}", &port);
+    println!("Drastical running on {}", &port);
     let _ = sys.run();
 }

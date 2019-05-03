@@ -1,7 +1,6 @@
-use actix_web::error::ErrorInternalServerError;
-use actix_web::{client, http, AsyncResponder, Error, HttpResponse};
+use actix_web::{client, error, http, AsyncResponder, FutureResponse, HttpResponse};
 use futures::future::Future;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 static USERNAME: &str = "DigiDailies";
 static AVATAR_URL: &str =
@@ -14,15 +13,28 @@ pub struct DiscordRequest<'a> {
     pub avatar_url: &'a str,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub enum DiscordChannel {
+    Theme,
+    Admin,
+}
+
+impl Default for DiscordChannel {
+    fn default() -> Self {
+        DiscordChannel::Admin
+    }
+}
+
 impl<'a> DiscordRequest<'a> {
-    pub fn send(content: &str, url: &str) -> Box<Future<Item = HttpResponse, Error = Error>> {
+    // TODO: more generic error type?
+    pub fn send(content: &str, url: &str) -> FutureResponse<HttpResponse> {
         client::ClientRequest::post(url)
             .header(http::header::CONTENT_TYPE, "application/json")
             .json(&DiscordRequest::new(content))
             .unwrap()
             .send()
-            .map_err(|e| ErrorInternalServerError(e)) // TODO: better error message
-            .and_then(|_| Ok(HttpResponse::Ok().body("Request sent!\n")))
+            .map_err(|e| error::ErrorBadRequest(e))
+            .and_then(|_| Ok(HttpResponse::Ok().body("Message sent!\n")))
             .responder()
     }
 
