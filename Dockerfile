@@ -33,7 +33,7 @@ FROM rust:1.31
 COPY --from=build /drastical/target/release/drastical .
 
 # expose the port
-EXPOSE 8088
+EXPOSE 80
 
 # set the startup command to run your binary
 CMD ["./drastical"]
