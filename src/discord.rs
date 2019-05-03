@@ -2,6 +2,7 @@ use actix_web::{client, error, http, AsyncResponder, FutureResponse, HttpRespons
 use futures::future::Future;
 use serde::{Deserialize, Serialize};
 
+// TODO: place in state or take from webhook data?
 static USERNAME: &str = "DigiDailies";
 static AVATAR_URL: &str =
     "https://pbs.twimg.com/profile_images/1078696700506791936/QHYnmKxk_400x400.jpg";
@@ -26,7 +27,7 @@ impl Default for DiscordChannel {
 }
 
 impl<'a> DiscordRequest<'a> {
-    // TODO: more generic error type?
+    // TODO: check status from discord before returning Ok
     pub fn send(content: &str, url: &str) -> FutureResponse<HttpResponse> {
         client::ClientRequest::post(url)
             .header(http::header::CONTENT_TYPE, "application/json")

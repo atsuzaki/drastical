@@ -14,7 +14,7 @@ mod discord;
 use crate::discord::{DiscordChannel, DiscordRequest};
 
 ///
-/// Shape for webhook automatic PushEvent
+/// Shape for webhook automatic PushEvent, currently following my setup at Zapier's
 ///
 #[derive(Deserialize, Debug)]
 struct PushEvent {
@@ -68,7 +68,7 @@ fn webhook_zap((p, req): (Json<PushEvent>, HttpRequest<AppState>)) -> FutureResp
     let url = &req.state().env.theme_hook_url;
 
     if p.content.len() > 2 && &p.content[0..2] == "rt" { // TODO: better way
-        Box::new(ok(HttpResponse::Accepted().body("Is a retweet"))) // Wrap into a FutureResponse
+        Box::new(ok(HttpResponse::Accepted().body("Is a retweet"))) // Wrap into a FutureResponse // TODO: make helper 
     }
     else {
         DiscordRequest::send(&p.tweet_url, &url)
