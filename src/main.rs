@@ -67,7 +67,7 @@ fn index(req: &HttpRequest<AppState>) -> impl Responder {
 fn webhook_zap((p, req): (Json<PushEvent>, HttpRequest<AppState>)) -> FutureResponse<HttpResponse> {
     let url = &req.state().env.theme_hook_url;
 
-    if p.content.len() > 2 && &p.content[0..2] == "rt" { // TODO: better way
+    if p.content.len() > 2 && &p.content[0..2] == "RT" { // TODO: better way
         Box::new(ok(HttpResponse::Accepted().body("Is a retweet"))) // Wrap into a FutureResponse // TODO: make helper 
     }
     else {
