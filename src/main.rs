@@ -5,13 +5,14 @@ use actix_web::{
     http, middleware, server, App, FutureResponse, HttpRequest, HttpResponse, Json, Responder,
 };
 use dotenv::dotenv;
-use futures::future::{ok, Future};
 use serde::{Deserialize, Serialize};
 use std::env;
 
 mod discord;
+mod extensions;
 
 use crate::discord::{DiscordChannel, DiscordRequest};
+use crate::extensions::BoxResponse;
 
 ///
 /// Shape for webhook automatic PushEvent, currently following my setup at Zapier's
@@ -68,7 +69,7 @@ fn webhook_zap((p, req): (Json<PushEvent>, HttpRequest<AppState>)) -> FutureResp
     let url = &req.state().env.theme_hook_url;
 
     if p.content.len() > 2 && &p.content[0..2] == "RT" { // TODO: better way
-        Box::new(ok(HttpResponse::Accepted().body("Is a retweet"))) // Wrap into a FutureResponse // TODO: make helper 
+        HttpResponse::Accepted().body("Is a retweet").boxed_future()
     }
     else {
         DiscordRequest::send(&p.tweet_url, &url)
