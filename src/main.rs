@@ -1,5 +1,6 @@
 extern crate actix_web;
 extern crate dotenv;
+extern crate env_logger;
 
 use actix_web::{
     http, middleware, server, App, FutureResponse, HttpRequest, HttpResponse, Json, Responder,
@@ -87,6 +88,7 @@ fn webhook_manual((p, req): (Json<ManualPushEvent>, HttpRequest<AppState>)) -> F
 
 fn main() {
     println!("Starting http server");
+    env_logger::init();
     dotenv().ok();
 
     let port = env::var("PORT").expect("Port is not set in .env!");
