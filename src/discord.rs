@@ -13,8 +13,8 @@ static AVATAR_URL: &str =
 #[derive(Serialize, Debug)]
 pub struct DiscordRequest<'a> {
     pub username: &'a str,
-    pub content: String,
     pub avatar_url: &'a str,
+    pub content: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -35,16 +35,16 @@ impl<'a> DiscordRequest<'a> {
             .post(url)
             .header(http::header::CONTENT_TYPE, "application/json")
             .send_json(&DiscordRequest::new(content))
+            // TODO: check status from discord before returning Ok
             .and_then(|_| Ok(HttpResponse::Ok().body("Message sent!\n")))
             .or_else(|_| Ok(HttpResponse::BadRequest().finish()))
     }
 
-    pub fn new(content: String) -> DiscordRequest<'a>  {
-
+    pub fn new<S: Into<String>>(content: S) -> DiscordRequest<'a> {
         DiscordRequest {
             username: &USERNAME,
             avatar_url: &AVATAR_URL,
-            content,
+            content: content.into(),
         }
     }
 }

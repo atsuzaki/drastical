@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 actix = "0.7"
-actix-web = { version = "1.0.0", features = ["client", "rust-tls"] }
+actix-web = { version = "1.0.0", features = ["client", "ssl"] }
 dotenv = "0.13.0"
 futures = "0.1"
 env_logger = "0.6"
