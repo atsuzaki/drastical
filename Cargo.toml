@@ -1,12 +1,12 @@
 [package]
 name = "drastical"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["atsuzaki <katherinephilip98@gmail.com>"]
 edition = "2018"
 
 [dependencies]
 actix = "0.7"
-actix-web = { version = "0.7", features = ["alpn"] }
+actix-web = { version = "1.0.0", features = ["client", "rust-tls"] }
 dotenv = "0.13.0"
 futures = "0.1"
 env_logger = "0.6"
