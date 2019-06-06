@@ -1,4 +1,4 @@
-use actix_web::{client, http, Error, HttpResponse};
+use actix_web::{client, http, HttpResponse};
 use futures::Future;
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +13,7 @@ static AVATAR_URL: &str =
 #[derive(Serialize, Debug)]
 pub struct DiscordRequest<'a> {
     pub username: &'a str,
-    pub content: &'a str,
+    pub content: String,
     pub avatar_url: &'a str,
 }
 
@@ -30,16 +30,17 @@ impl Default for DiscordChannel {
 }
 
 impl<'a> DiscordRequest<'a> {
-    pub fn send(content: &'static str, url: &str) -> impl FutureResponse {
+    pub fn send(content: String, url: &str) -> impl FutureResponse {
         client::Client::new()
             .post(url)
             .header(http::header::CONTENT_TYPE, "application/json")
-            .send_json(&DiscordRequest::new(&content))
+            .send_json(&DiscordRequest::new(content))
             .and_then(|_| Ok(HttpResponse::Ok().body("Message sent!\n")))
             .or_else(|_| Ok(HttpResponse::BadRequest().finish()))
     }
 
-    pub fn new(content: &str) -> DiscordRequest {
+    pub fn new(content: String) -> DiscordRequest<'a>  {
+
         DiscordRequest {
             username: &USERNAME,
             avatar_url: &AVATAR_URL,
