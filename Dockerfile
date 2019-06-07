@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get -y install ca-certificates libssl-dev && rm -rf /var/lib/apt/lists/*
 
 # select build image
-FROM rust:1.31 as build
+FROM rust:1.34 as build
 
 # create a new empty shell project
 RUN USER=root cargo new --bin drastical
@@ -27,7 +27,7 @@ RUN rm ./target/release/deps/drastical*
 RUN cargo build --release
 
 # our final base
-FROM rust:1.31
+FROM rust:1.34
 
 # copy the build artifact from the build stage
 COPY --from=build /drastical/target/release/drastical .
