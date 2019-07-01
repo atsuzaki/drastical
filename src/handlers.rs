@@ -6,6 +6,7 @@ use actix_web::{
 use futures::future::{ok, Either};
 
 use crate::misc::aliases::FutureResponse;
+use crate::misc::helpers::is_retweet;
 use crate::models::*;
 
 use crate::discord::{DiscordChannel, DiscordRequest};
@@ -18,15 +19,13 @@ pub fn index(state: Data<AppState>) -> HttpResponse {
 /// Endpoint for receiving Zapier webhook data
 /// Will be deprecated and replaced as soon as DigiDailies twitter dev account is approved
 ///
-#[rustfmt::skip]
 pub fn webhook_zap(p: Json<PushEvent>, state: Data<AppState>) -> impl FutureResponse {
     let url = &state.env.theme_hook_url;
 
-    if p.content.len() > 2 && &p.content[0..2] == "RT" { // TODO: better way
-       Either::A(ok(HttpResponse::Accepted().body("Is a retweet")))
-    }
-    else {
-       Either::B(DiscordRequest::send(p.tweet_url.clone(), &url))
+    if is_retweet(&p.content) {
+        Either::A(ok(HttpResponse::Accepted().body("Is a retweet")))
+    } else {
+        Either::B(DiscordRequest::send(p.tweet_url.clone(), &url))
     }
 }
 
