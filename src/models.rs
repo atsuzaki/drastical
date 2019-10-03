@@ -9,6 +9,7 @@ use crate::discord::DiscordChannel;
 #[derive(Deserialize, Debug)]
 pub struct PushEvent {
     pub tweet_url: String,
+    pub pfp_url: String,
     pub content: String,
 }
 

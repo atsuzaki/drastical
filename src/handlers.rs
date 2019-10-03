@@ -25,7 +25,11 @@ pub fn webhook_zap(p: Json<PushEvent>, state: Data<AppState>) -> impl FutureResp
     if is_retweet(&p.content) {
         Either::A(ok(HttpResponse::Accepted().body("Is a retweet")))
     } else {
-        Either::B(DiscordRequest::send(p.tweet_url.clone(), &url))
+        Either::B(DiscordRequest::send(
+            p.tweet_url.clone(),
+            p.pfp_url.clone(),
+            &url,
+        ))
     }
 }
 
@@ -38,5 +42,5 @@ pub fn webhook_manual(p: Json<ManualPushEvent>, state: Data<AppState>) -> impl F
     } else {
         &state.env.admin_hook_url
     };
-    DiscordRequest::send(p.content.clone(), &url)
+    DiscordRequest::send(p.content.clone(), "".to_string(), &url) // TODO: provide default pfp url
 }
