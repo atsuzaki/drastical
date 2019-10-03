@@ -11,7 +11,7 @@ static USERNAME: &str = "DigiDailies";
 #[derive(Serialize, Debug)]
 pub struct DiscordRequest<'a> {
     pub username: &'a str,
-    pub avatar_url: &'a str,
+    pub avatar_url: String,
     pub content: String,
 }
 
